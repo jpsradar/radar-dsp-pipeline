@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Generated outputs
+figures/generated_plots/*
+!figures/generated_plots/.gitkeep
+
+# Notebooks executed/exported
+*.executed.ipynb
+.ipynb_checkpoints/
+
+# macOS
+.DS_Store
