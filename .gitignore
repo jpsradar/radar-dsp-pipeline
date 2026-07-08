@@ -13,3 +13,6 @@ figures/generated_plots/*
 
 # macOS
 .DS_Store
+
+# vscode configuration
+.vscode/

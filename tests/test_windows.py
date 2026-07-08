@@ -70,3 +70,20 @@ def test_apply_window_preserves_shape_and_changes_values() -> None:
     assert windowed.shape == signal.shape
     assert window.shape == signal.shape
     assert not np.allclose(windowed, signal)
+
+
+def test_apply_rectangular_window_preserves_signal_values() -> None:
+    """
+    Applying a rectangular window should leave the signal unchanged.
+
+    This protects the reference behavior used to compare non-rectangular
+    windows against the no-apodization case.
+    """
+    signal = np.array([1.0, -2.0, 3.5, 0.0, -1.25], dtype=float)
+
+    windowed, window = apply_window(signal, "rectangular")
+
+    assert windowed.shape == signal.shape
+    assert window.shape == signal.shape
+    assert np.allclose(window, np.ones_like(signal))
+    assert np.allclose(windowed, signal)
