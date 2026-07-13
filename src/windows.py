@@ -102,6 +102,33 @@ def apply_window(signal: np.ndarray, window_name: WindowName) -> tuple[np.ndarra
     return x * window, window
 
 
+def _as_valid_1d_window(window: np.ndarray) -> np.ndarray:
+    """
+    Convert input to a validated one-dimensional window array.
+
+    Parameters
+    ----------
+    window:
+        Window coefficients.
+
+    Returns
+    -------
+    np.ndarray
+        One-dimensional validated window array.
+
+    Raises
+    ------
+    ValueError
+        If the window is not one-dimensional or is empty.
+    """
+    w = np.asarray(window, dtype=float)
+    if w.ndim != 1:
+        raise ValueError("window must be one-dimensional.")
+    if w.size == 0:
+        raise ValueError("window must not be empty.")
+    return w
+
+
 def coherent_gain(window: np.ndarray) -> float:
     """
     Compute coherent gain of a window.
@@ -119,16 +146,8 @@ def coherent_gain(window: np.ndarray) -> float:
     -------
     float
         Coherent gain.
-
-    Raises
-    ------
-    ValueError
-        If the window is empty.
     """
-    w = np.asarray(window, dtype=float)
-    if w.size == 0:
-        raise ValueError("window must not be empty.")
-
+    w = _as_valid_1d_window(window)
     return float(np.mean(w))
 
 
@@ -153,11 +172,9 @@ def equivalent_noise_bandwidth(window: np.ndarray) -> float:
     Raises
     ------
     ValueError
-        If the window is empty or has zero coherent gain.
+        If the window is empty, not one-dimensional, or has zero coherent gain.
     """
-    w = np.asarray(window, dtype=float)
-    if w.size == 0:
-        raise ValueError("window must not be empty.")
+    w = _as_valid_1d_window(window)
 
     denominator = float(np.sum(w) ** 2)
     if denominator <= 0.0:

@@ -16,6 +16,7 @@ Engineering contracts checked here:
 """
 
 import numpy as np
+import pytest
 
 from src.windows import (
     apply_window,
@@ -87,3 +88,16 @@ def test_apply_rectangular_window_preserves_signal_values() -> None:
     assert window.shape == signal.shape
     assert np.allclose(window, np.ones_like(signal))
     assert np.allclose(windowed, signal)
+
+
+def test_coherent_gain_rejects_non_1d_window() -> None:
+    """
+    Coherent gain should reject non-1D inputs.
+
+    Window metrics in this repo are defined for one-dimensional window vectors,
+    not matrices or higher-dimensional arrays.
+    """
+    window = np.ones((8, 8), dtype=float)
+
+    with pytest.raises(ValueError, match="window must be one-dimensional."):
+        coherent_gain(window)
