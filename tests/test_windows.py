@@ -101,3 +101,16 @@ def test_coherent_gain_rejects_non_1d_window() -> None:
 
     with pytest.raises(ValueError, match="window must be one-dimensional."):
         coherent_gain(window)
+
+
+def test_apply_window_rejects_signal_shorter_than_two_samples() -> None:
+    """
+    Applying a window should reject signals shorter than two samples.
+
+    Window application in this repo assumes a meaningful one-dimensional signal,
+    and very short inputs should fail with a clear local error.
+    """
+    signal = np.array([1.0], dtype=float)
+
+    with pytest.raises(ValueError, match="signal must contain at least two samples."):
+        apply_window(signal, "hann")

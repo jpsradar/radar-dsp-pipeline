@@ -92,11 +92,13 @@ def apply_window(signal: np.ndarray, window_name: WindowName) -> tuple[np.ndarra
     Raises
     ------
     ValueError
-        If signal is not one-dimensional.
+        If signal is not one-dimensional or contains fewer than two samples.
     """
     x = np.asarray(signal, dtype=float)
     if x.ndim != 1:
         raise ValueError("signal must be one-dimensional.")
+    if x.size < 2:
+        raise ValueError("signal must contain at least two samples.")
 
     window = get_window(window_name, x.size)
     return x * window, window
