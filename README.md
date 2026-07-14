@@ -65,6 +65,8 @@ No plotting. No CLI. Pure logic.
 6. **06 — IIR stability and numerical robustness**  
    pole radius + direct form vs SOS + float32 vs float64 → bounded response, numerical overflow, and divergence
 
+   **Plot interpretation note:** Curves that spike and then collapse to the plotting floor correspond to overflow or non-finite sample sanitation, not to physical decay.
+
 All outputs are generated under:
 
     figures/generated_plots/
