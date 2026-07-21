@@ -1005,56 +1005,140 @@ def plot_false_alarm_control(metrics: list[DetectorMetrics], args: argparse.Name
     return output_path
 
 
-def plot_snr_requirement_summary(metrics: list[DetectorMetrics], args: argparse.Namespace) -> Path:
+def plot_snr_requirement_summary(
+    metrics: list[DetectorMetrics],
+    args: argparse.Namespace,
+) -> Path:
     """
-    Plot interpolated SNR required to reach target Pd for each processing chain.
+    Compare SNR required to reach target Pd for both detector types.
 
-    This figure is intended to summarize engineering impact. It uses the
-    fixed-threshold detector because that detector has explicitly controlled
-    Monte Carlo thresholding and is directly comparable across chains.
+    Empirical Pfa is annotated because CA-CFAR and fixed-threshold results are
+    not strictly comparable when their achieved false-alarm probabilities differ.
+
+    Args:
+        metrics: Metrics for every processing-chain and detector combination.
+        args: Validated runtime configuration.
+
+    Returns:
+        Path to the generated comparison figure.
     """
     args.output_dir.mkdir(parents=True, exist_ok=True)
     output_path = args.output_dir / "05_snr_requirement_summary.png"
 
-    fixed_rows = [m for m in metrics if m.detector == "fixed_threshold"]
-    chain_names = [m.chain_name for m in fixed_rows]
-    values = [
-        np.nan if m.snr_for_target_pd_db is None else m.snr_for_target_pd_db
-        for m in fixed_rows
+    chain_names = [chain.name for chain in default_processing_chains()]
+    fixed_by_chain = {
+        metric.chain_name: metric
+        for metric in metrics
+        if metric.detector == "fixed_threshold"
+    }
+    cfar_by_chain = {
+        metric.chain_name: metric
+        for metric in metrics
+        if metric.detector == "ca_cfar"
+    }
+
+    missing_fixed = [
+        name for name in chain_names if name not in fixed_by_chain
     ]
+    missing_cfar = [
+        name for name in chain_names if name not in cfar_by_chain
+    ]
+    if missing_fixed or missing_cfar:
+        raise RuntimeError(
+            "Missing detector metrics for SNR summary: "
+            f"fixed={missing_fixed}, ca_cfar={missing_cfar}."
+        )
 
-    x = np.arange(len(chain_names))
+    fixed_rows = [fixed_by_chain[name] for name in chain_names]
+    cfar_rows = [cfar_by_chain[name] for name in chain_names]
 
-    fig, ax = plt.subplots(figsize=(10.5, 6.0))
-    bars = ax.bar(x, values)
+    fixed_values = np.array(
+        [
+            np.nan
+            if row.snr_for_target_pd_db is None
+            else row.snr_for_target_pd_db
+            for row in fixed_rows
+        ],
+        dtype=float,
+    )
+    cfar_values = np.array(
+        [
+            np.nan
+            if row.snr_for_target_pd_db is None
+            else row.snr_for_target_pd_db
+            for row in cfar_rows
+        ],
+        dtype=float,
+    )
 
-    ax.set_title(f"Interpolated SNR Required for Pd ≥ {args.target_pd:.2f}")
+    x = np.arange(len(chain_names), dtype=float)
+    width = 0.36
+
+    fig, ax = plt.subplots(figsize=(12.0, 6.5))
+    fixed_bars = ax.bar(
+        x - width / 2.0,
+        fixed_values,
+        width,
+        label="Fixed threshold",
+    )
+    cfar_bars = ax.bar(
+        x + width / 2.0,
+        cfar_values,
+        width,
+        label="CA-CFAR",
+    )
+
+    ax.set_title(
+        f"Interpolated SNR Required for Pd ≥ {args.target_pd:.2f}"
+    )
     ax.set_ylabel("Input SNR [dB]")
     ax.set_xticks(x)
     ax.set_xticklabels(chain_names, rotation=25, ha="right")
     ax.grid(True, axis="y", linestyle="--", alpha=0.35)
+    ax.legend(loc="best")
 
-    finite_values = [v for v in values if not np.isnan(v)]
-    if finite_values:
-        y_min = min(finite_values) - 1.5
-        y_max = max(finite_values) + 1.5
+    all_values = np.concatenate((fixed_values, cfar_values))
+    finite_values = all_values[np.isfinite(all_values)]
+    if finite_values.size > 0:
+        y_min = float(np.min(finite_values) - 1.5)
+        y_max = float(np.max(finite_values) + 1.5)
         if np.isclose(y_min, y_max):
             y_min -= 1.0
             y_max += 1.0
         ax.set_ylim(y_min, y_max)
 
-    for bar, value in zip(bars, values):
-        text = "not reached" if np.isnan(value) else f"{value:.2f} dB"
-        y = 0.0 if np.isnan(value) else value
-        ax.annotate(
-            text,
-            xy=(bar.get_x() + bar.get_width() / 2.0, y),
-            xytext=(0, 5),
-            textcoords="offset points",
-            ha="center",
-            va="bottom",
-            fontsize=9,
-        )
+    def annotate_bars(
+        bars: object,
+        rows: list[DetectorMetrics],
+        values: np.ndarray,
+    ) -> None:
+        """Annotate SNR requirement and achieved empirical Pfa."""
+        for bar, row, value in zip(bars, rows, values, strict=True):
+            if np.isnan(value):
+                text = f"not reached\nPfa={row.empirical_pfa:.3f}"
+                y_position = 0.0
+            else:
+                text = (
+                    f"{value:.2f} dB\n"
+                    f"Pfa={row.empirical_pfa:.3f}"
+                )
+                y_position = float(value)
+
+            ax.annotate(
+                text,
+                xy=(
+                    bar.get_x() + bar.get_width() / 2.0,
+                    y_position,
+                ),
+                xytext=(0, 5),
+                textcoords="offset points",
+                ha="center",
+                va="bottom",
+                fontsize=8,
+            )
+
+    annotate_bars(fixed_bars, fixed_rows, fixed_values)
+    annotate_bars(cfar_bars, cfar_rows, cfar_values)
 
     fig.tight_layout()
     fig.savefig(output_path, dpi=200)
