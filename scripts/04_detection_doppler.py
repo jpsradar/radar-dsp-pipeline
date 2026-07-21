@@ -513,7 +513,7 @@ def plot_doppler_peak_detection(example: ExampleDetectionResult, args: argparse.
         marker="x",
         s=120,
         linewidths=2.4,
-        label="Detected peak",
+        label="Selected peak",
         zorder=5,
     )
 
